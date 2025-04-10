@@ -1,12 +1,11 @@
 #!/bin/bash
 
-LOG_DIR="./logs"
+LOG_DIR="./logs"  # Ensure this is the correct relative path from where you're running the script
 TOTAL_MB=0
 
 echo "[*] Parsing logs from $LOG_DIR..."
 
-# Iterate through all log files in the logs directory
-for f in $LOG_DIR/bgmi-*.log; do
+for f in $LOG_DIR/bgmi.log; do
   while IFS= read -r line; do
     # Look for lines indicating traffic benchmarks
     if [[ "$line" == *"Benchmarking to"* ]]; then
