@@ -1,0 +1,10 @@
+FROM ubuntu:20.04
+
+RUN apt update && apt install -y iproute2 iputils-ping net-tools netcat curl
+
+# Copy bgmi binary to the container and set permissions
+COPY bgmi /usr/local/bin/bgmi
+RUN chmod +x /usr/local/bin/bgmi
+VOLUME ["/logs"]
+
+CMD ["bash"]
